@@ -1,0 +1,662 @@
+<script>	
+    var canvasWidth = 700;
+    var canvasHeight = 700;
+    var canvas = null;
+    var bounds = null;
+    var ctx = null;
+    var hasLoaded = false;
+    
+    var startX = 0;
+    var startY = 0;
+    var mouseX = 0;
+    var mouseY = 0;
+
+    var isDrawing = false;
+    var isDragging = false;
+    var isEditingMouse = false;
+    var isEditingTextBox = false;
+
+    var draggedLine = null;
+    var draggedRect = null;
+    var draggedCircle = null;
+
+    var editedIndexLine = -1;
+    var editedIndexRect = -1;
+    var editedIndexCircle = -1;
+    var editedLine = null;
+    var editedRect = null;
+    var editedCircle = null;
+
+    var existingLines = [];
+    var existingRects = [];
+    var existingCircles = [];
+
+    var lineStartX = 0;
+    var lineStartY = 0;
+    var lineEndX = 0;
+    var lineEndY = 0;
+    
+    var rectStartX = 0;
+    var rectStartY = 0;
+    var rectWidth = 0;
+    var rectHeight = 0;
+
+    var circleCenterX = 0;
+    var circlCenterY = 0;
+    var circleRadius = 0;
+
+    var chosenObject = "line";
+    var chosenOperation = "draw";
+
+    function chooseLine(){
+        chosenObject = "line";
+        document.getElementById("buttonLine").style.background='#ff973d';
+        document.getElementById("buttonRect").style.background='#b9b9b9';
+        document.getElementById("buttonCircle").style.background='#b9b9b9';
+    }
+    function chooseRect(){
+        chosenObject = "rect";
+        document.getElementById("buttonLine").style.background='#b9b9b9';
+        document.getElementById("buttonRect").style.background='#ff973d';
+        document.getElementById("buttonCircle").style.background='#b9b9b9';
+    }
+    function chooseCircle(){
+        chosenObject = "circle";
+        document.getElementById("buttonLine").style.background='#b9b9b9';
+        document.getElementById("buttonRect").style.background='#b9b9b9';
+        document.getElementById("buttonCircle").style.background='#ff973d';
+    }
+
+    function chooseDraw(){
+        chosenOperation = "draw";
+        document.getElementById("buttonDraw").style.background='#ff973d';
+        document.getElementById("buttonDrag").style.background='#b9b9b9';
+        document.getElementById("buttonEditMouse").style.background='#b9b9b9';
+        document.getElementById("buttonEditTextBox").style.background='#b9b9b9';
+    }
+    function chooseDrag(){
+        chosenOperation = "drag";
+        document.getElementById("buttonDraw").style.background='#b9b9b9';
+        document.getElementById("buttonDrag").style.background='#ff973d';
+        document.getElementById("buttonEditMouse").style.background='#b9b9b9';
+        document.getElementById("buttonEditTextBox").style.background='#b9b9b9';
+    }
+    function chooseEditMouse(){
+        chosenOperation = "editMouse";
+        document.getElementById("buttonDraw").style.background='#b9b9b9';
+        document.getElementById("buttonDrag").style.background='#b9b9b9';
+        document.getElementById("buttonEditMouse").style.background='#ff973d';
+        document.getElementById("buttonEditTextBox").style.background='#b9b9b9';
+    }
+    function chooseEditTextBox(){
+        chosenOperation = "editTextBox";
+        document.getElementById("buttonDraw").style.background='#b9b9b9';
+        document.getElementById("buttonDrag").style.background='#b9b9b9';
+        document.getElementById("buttonEditMouse").style.background='#b9b9b9';
+        document.getElementById("buttonEditTextBox").style.background='#ff973d';
+    }
+
+    //linia z textboxow
+    function drawLine(){
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+
+        lineStartX = parseInt(document.getElementById("lineStartX").value);
+        lineStartY = parseInt(document.getElementById("lineStartY").value);
+        lineEndX = parseInt(document.getElementById("lineEndX").value);
+        lineEndY = parseInt(document.getElementById("lineEndY").value);
+        
+        ctx.beginPath();
+        ctx.moveTo(lineStartX,lineStartY);
+        ctx.lineTo(lineEndX,lineEndY);
+        ctx.stroke();
+
+        existingLines.push({
+            startX: lineStartX,
+            startY: lineStartY,
+            endX: lineEndX,
+            endY: lineEndY
+        });
+    }
+
+    //prostokat z textboxow
+    function drawRect(){
+        rectStartX = parseInt(document.getElementById("rectStartX").value);
+        rectStartY = parseInt(document.getElementById("rectStartY").value);
+        rectWidth = parseInt(document.getElementById("rectWidth").value);
+        rectHeight = parseInt(document.getElementById("rectHeight").value);
+        
+        ctx.beginPath();
+        ctx.rect(rectStartX,rectStartY,rectWidth,rectHeight);
+        ctx.stroke();
+
+        existingRects.push({
+            startX: rectStartX,
+            startY: rectStartY,
+            width: rectWidth,
+            height: rectHeight
+        });
+    }
+
+    //okrag z textboxow
+    function drawCircle(){
+        circleCenterX = parseInt(document.getElementById("circleCenterX").value);
+        circleCenterY = parseInt(document.getElementById("circleCenterY").value);
+        circleRadius = parseInt(document.getElementById("circleRadius").value);
+        
+        ctx.beginPath();
+        ctx.arc(circleCenterX,circleCenterY,circleRadius,0,2*Math.PI);
+        ctx.stroke();
+
+        existingCircles.push({
+            centerX: circleCenterX,
+            centerY: circleCenterY,
+            radius: circleRadius
+        });
+    }
+
+    //edycja linii z textboxow
+    function editLine(){
+
+        if (editedIndexLine >= 0)
+            existingLines.splice(editedIndexLine, 1);
+
+        editedLine.startX = parseInt(document.getElementById("lineStartXEdit").value);
+        editedLine.startY = parseInt(document.getElementById("lineStartYEdit").value);
+        editedLine.endX = parseInt(document.getElementById("lineEndXEdit").value);
+        editedLine.endY = parseInt(document.getElementById("lineEndYEdit").value);
+
+        existingLines.push({
+            startX: editedLine.startX,
+            startY: editedLine.startY,
+            endX: editedLine.endX,
+            endY: editedLine.endY
+        });
+
+        document.getElementById("lineStartXEdit").value = 0;
+        document.getElementById("lineStartYEdit").value = 0;
+        document.getElementById("lineEndXEdit").value = 0;
+        document.getElementById("lineEndYEdit").value = 0;
+
+        editedLine = null;
+        editedIndexLine = -1;
+
+        draw();
+    }
+
+    //edycja prostokata z textboxow
+    function editRect(){
+
+        if (editedIndexRect >= 0)
+            existingRects.splice(editedIndexRect, 1);
+
+        editedRect.startX = parseInt(document.getElementById("rectStartXEdit").value);
+        editedRect.startY = parseInt(document.getElementById("rectStartYEdit").value);
+        editedRect.width = parseInt(document.getElementById("rectWidthEdit").value);
+        editedRect.height = parseInt(document.getElementById("rectHeightEdit").value);
+
+        existingRects.push({
+            startX: editedRect.startX,
+            startY: editedRect.startY,
+            width: editedRect.width,
+            height: editedRect.height
+        });
+
+        document.getElementById("rectStartXEdit").value = 0;
+        document.getElementById("rectStartYEdit").value = 0;
+        document.getElementById("rectWidthEdit").value = 0;
+        document.getElementById("rectHeightEdit").value = 0;
+
+        editedRect = null;
+        editedIndexRect = -1;
+
+        draw();
+    }
+
+    //edycja okregu z textboxow
+    function editCircle(){
+
+        if (editedIndexCircle >= 0)
+            existingCircles.splice(editedIndexCircle, 1);
+
+        editedCircle.centerX = parseInt(document.getElementById("circleCenterXEdit").value);
+        editedCircle.centerY = parseInt(document.getElementById("circleCenterYEdit").value);
+        editedCircle.radius = parseInt(document.getElementById("circleRadiusEdit").value);
+
+        existingCircles.push({
+            centerX: editedCircle.centerX,
+            centerY: editedCircle.centerY,
+            radius: editedCircle.radius,
+        });
+
+        document.getElementById("circleCenterXEdit").value = 0;
+        document.getElementById("circleCenterYEdit").value = 0;
+        document.getElementById("circleRadiusEdit").value = 0;
+
+        editedCircle = null;
+        editedIndexCircle = -1;
+
+        draw();
+    }
+
+    //rysowanie kanwy
+    function draw() {
+        //odswiezenie canvas
+        ctx.fillStyle = "white";
+        ctx.fillRect(0,0,canvasWidth,canvasHeight);
+        
+        //wczytanie linii
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+        for (var i = 0; i < existingLines.length; i++) {
+            var line = existingLines[i];
+            ctx.beginPath();
+            ctx.moveTo(line.startX,line.startY);
+            ctx.lineTo(line.endX,line.endY);
+            ctx.stroke();
+        }
+        
+        //wczytanie prostokatow
+        ctx.fillStyle = "black";
+        for (var i = 0; i < existingRects.length; i++) {
+            var rect = existingRects[i];
+            ctx.beginPath();
+            ctx.rect(rect.startX,rect.startY,rect.width,rect.height);
+            ctx.stroke();
+        }
+        
+        //wczytanie kol
+        for (var i = 0; i < existingCircles.length; i++) {
+            var circle = existingCircles[i];
+            ctx.beginPath();
+            ctx.arc(circle.centerX,circle.centerY,circle.radius,0,2*Math.PI);
+            ctx.stroke();
+        }
+
+        //rysowanie przy wcisnietym LPM
+        if (isDrawing) {
+
+            if (chosenObject == "line"){
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(startX,startY);
+                ctx.lineTo(mouseX,mouseY);
+                ctx.stroke();
+            }
+
+            else if (chosenObject == "rect"){      
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.rect(startX,startY,mouseX-startX,mouseY-startY);
+                ctx.stroke();
+            }
+
+            else if (chosenObject == "circle"){
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(startX,startY,Math.abs(mouseX-startX),0,2*Math.PI);
+                ctx.stroke();
+            }
+        }
+
+        //przesuwanie przy wcisnietym LPM
+        else if (isDragging) {
+
+            if (chosenObject == "line" && draggedLine){
+                ctx.beginPath();
+                ctx.moveTo(draggedLine.startX+(mouseX-startX),
+                            draggedLine.startY+(mouseY-startY));
+                ctx.lineTo(draggedLine.endX+(mouseX-startX),
+                            draggedLine.endY+(mouseY-startY));
+                ctx.stroke();
+            }
+
+            else if (chosenObject == "rect" && draggedRect){
+                ctx.beginPath();
+                ctx.rect(draggedRect.startX+(mouseX-startX),
+                        draggedRect.startY+(mouseY-startY),
+                        draggedRect.width,
+                        draggedRect.height);
+                ctx.stroke();
+            }
+
+            else if (chosenObject == "circle" && draggedCircle){
+                ctx.beginPath();
+                ctx.arc(draggedCircle.centerX+(mouseX-startX),
+                        draggedCircle.centerY+(mouseY-startY),
+                        draggedCircle.radius,
+                        0,
+                        2*Math.PI);
+                ctx.stroke();
+            }
+
+        }
+    }
+    
+    function onmousedown(e) {
+
+        if (hasLoaded && e.button === 0) {
+
+            if (!isDrawing && chosenOperation == "draw") {
+                startX = e.clientX - bounds.left;
+                startY = e.clientY - bounds.top;
+                isDrawing = true;
+            }
+
+            else if (!isDragging && chosenOperation == "drag") {
+                startX = e.clientX - bounds.left;
+                startY = e.clientY - bounds.top;
+                isDragging = true;
+
+                if (chosenObject == "line"){
+                    var index = -1;
+                    for (var i = 0; i < existingLines.length; i++) {
+                        var line = existingLines[i];
+                        var rect = {
+                            startX: (line.startX < line.endX) ? line.startX : line.endX,
+                            startY: (line.startY < line.endY) ? line.startY : line.endY,
+                            width: Math.abs(line.endX-line.startX),
+                            height: Math.abs(line.endY-line.startY)
+                        };
+                        if(startX>=rect.startX && startX<=rect.startX+rect.width && startY>=rect.startY && startY<=rect.startY+rect.height){
+                            draggedLine = line;
+                            index = i;
+                        }
+                    }
+                    if (index >= 0)
+                        existingLines.splice(index, 1);
+                }
+
+                else if (chosenObject == "rect"){
+                    var index = -1;
+                    for (var i = 0; i < existingRects.length; i++) {
+                        var rect = existingRects[i];
+                        if(startX>=rect.startX 
+                            && startX<=rect.startX+rect.width 
+                            && startY>=rect.startY 
+                            && startY<=rect.startY+rect.height){
+                            draggedRect = rect;
+                            index = i;
+                        }
+                    }
+                    if (index >= 0)
+                        existingRects.splice(index, 1);
+                }
+
+                else if (chosenObject == "circle"){
+                    var index = -1;
+                    for (var i = 0; i < existingCircles.length; i++) {
+                        var circle = existingCircles[i];
+                        if(Math.sqrt((startX-circle.centerX)*(startX-circle.centerX) 
+                            + (startY-circle.centerY)*(startY-circle.centerY)) < circle.radius){
+                            draggedCircle = circle;
+                            index = i;
+                        }
+                    }
+                    if (index >= 0)
+                        existingCircles.splice(index, 1);
+                }
+            }
+
+            if (!isEditingTextBox && chosenOperation == "editTextBox") {
+                startX = e.clientX - bounds.left;
+                startY = e.clientY - bounds.top;
+                isEditingTextBox = true;
+
+                if (chosenObject == "line"){
+                    for (var i = 0; i < existingLines.length; i++) {
+                        var line = existingLines[i];
+                        var rect = {
+                            startX: (line.startX < line.endX) ? line.startX : line.endX,
+                            startY: (line.startY < line.endY) ? line.startY : line.endY,
+                            width: Math.abs(line.endX-line.startX),
+                            height: Math.abs(line.endY-line.startY)
+                        };
+                        if(startX>=rect.startX && startX<=rect.startX+rect.width && startY>=rect.startY && startY<=rect.startY+rect.height){
+                            editedLine = line;
+                            editedIndexLine = i;
+                            document.getElementById("lineStartXEdit").value = editedLine.startX;
+                            document.getElementById("lineStartYEdit").value = editedLine.startY;
+                            document.getElementById("lineEndXEdit").value = editedLine.endX;
+                            document.getElementById("lineEndYEdit").value = editedLine.endY;
+                        }
+                    }
+                }
+
+                else if (chosenObject == "rect"){
+                    for (var i = 0; i < existingRects.length; i++) {
+                        var rect = existingRects[i];
+                        if(startX>=rect.startX 
+                            && startX<=rect.startX+rect.width 
+                            && startY>=rect.startY 
+                            && startY<=rect.startY+rect.height){
+                            editedRect = rect;
+                            editedIndexRect = i;
+                            document.getElementById("rectStartXEdit").value = editedRect.startX;
+                            document.getElementById("rectStartYEdit").value = editedRect.startY;
+                            document.getElementById("rectWidthEdit").value = editedRect.width;
+                            document.getElementById("rectHeightEdit").value = editedRect.height;
+                        }
+                    }
+                }
+
+                else if (chosenObject == "circle"){
+                    for (var i = 0; i < existingCircles.length; i++) {
+                        var circle = existingCircles[i];
+                        if(Math.sqrt((startX-circle.centerX)*(startX-circle.centerX) 
+                            + (startY-circle.centerY)*(startY-circle.centerY)) < circle.radius){
+                            editedCircle = circle;
+                            editedIndexCircle = i;
+                            document.getElementById("circleCenterXEdit").value = editedCircle.centerX;
+                            document.getElementById("circleCenterYEdit").value = editedCircle.centerY;
+                            document.getElementById("circleRadiusEdit").value = editedCircle.radius;
+                        }
+                    }
+                }
+            }
+            
+            draw();
+        }
+    }
+    
+    function onmouseup(e) {
+
+        if (hasLoaded && e.button === 0) {
+
+            if (isDrawing) {
+                
+                if (chosenObject == "line"){
+                    existingLines.push({
+                        startX: startX,
+                        startY: startY,
+                        endX: mouseX,
+                        endY: mouseY
+                    });
+                }
+
+                else if (chosenObject == "rect"){
+                    existingRects.push({
+                        startX: (startX < mouseX) ? startX : mouseX,
+                        startY: (startY < mouseY) ? startY : mouseY,
+                        width: Math.abs(mouseX-startX),
+                        height: Math.abs(mouseY-startY)
+                    });
+                }
+
+                else if (chosenObject == "circle"){
+                    existingCircles.push({
+                        centerX: startX,
+                        centerY: startY,
+                        radius: Math.abs(mouseX-startX)
+                    });
+                }
+                
+                isDrawing = false;
+            }
+
+            else if (isDragging){
+
+                if (chosenObject == "line" && draggedLine){
+                    existingLines.push({
+                        startX: draggedLine.startX+(mouseX-startX),
+                        startY: draggedLine.startY+(mouseY-startY),
+                        endX: draggedLine.endX+(mouseX-startX),
+                        endY: draggedLine.endY+(mouseY-startY)
+                    });
+
+                    draggedLine = null;
+                }
+
+                else if (chosenObject == "rect" && draggedRect){
+                    existingRects.push({
+                        startX: draggedRect.startX+(mouseX-startX),
+                        startY: draggedRect.startY+(mouseY-startY),
+                        width: draggedRect.width,
+                        height: draggedRect.height
+                    });
+
+                    draggedRect = null;
+                }
+
+                else if (chosenObject == "circle" && draggedCircle){
+                    existingCircles.push({
+                        centerX: draggedCircle.centerX+(mouseX-startX),
+                        centerY: draggedCircle.centerY+(mouseY-startY),
+                        radius: draggedCircle.radius
+                    });
+
+                    draggedCircle = null;
+                }
+                
+                isDragging = false;
+            }
+
+            else if (isEditingTextBox){
+                isEditingTextBox = false;
+            }
+            
+            draw();
+
+        }
+
+    }
+    
+    function onmousemove(e) {
+        if (hasLoaded) {
+            mouseX = e.clientX - bounds.left;
+            mouseY = e.clientY - bounds.top;
+            
+            if (isDrawing || isDragging || isEditingMouse || isEditingTextBox) {
+                draw();
+            }
+        }
+    }
+    
+    window.onload = function() {
+        canvas = document.getElementById("myCanvas");
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        canvas.onmousedown = onmousedown;
+        canvas.onmouseup = onmouseup;
+        canvas.onmousemove = onmousemove;
+        
+        bounds = canvas.getBoundingClientRect();
+        ctx = canvas.getContext("2d");
+        hasLoaded = true;
+        
+        draw();
+    }
+
+</script>
+
+<html>
+
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>Grafika 1</title>
+    </head>
+
+    <body>
+        <div style="float: left; margin-right: 20px;">
+            <div>
+                <canvas id="myCanvas" width="700" height="700" style="border:1px solid #000000;"></canvas>
+                <br>
+                700x700
+            </div>
+        </div>
+        <div>
+            <div>
+                <br>
+                <button onclick="chooseDraw()" id="buttonDraw" class="button template" style="background-color: rgb(255, 151, 61); border: none; padding: 5px 10px;">Draw</button>
+                <button onclick="chooseDrag()" id="buttonDrag" class="button template" style="background-color: rgb(185, 185, 185); border: none; padding: 5px 10px;">Drag</button>
+                <button onclick="chooseEditMouse()" id="buttonEditMouse" class="button template" style="background-color: rgb(185, 185, 185); border: none; padding: 5px 10px;" disabled>Edit Mouse</button>
+                <button onclick="chooseEditTextBox()" id="buttonEditTextBox" class="button template" style="background-color: rgb(185, 185, 185); border: none; padding: 5px 10px;">Edit TextBox</button>
+            </div>
+            <div>
+                <br>
+                <button onclick="chooseLine()" id="buttonLine" class="button template" style="background-color: rgb(255, 151, 61); border: none; padding: 5px 10px;">Line</button>
+                <button onclick="chooseRect()" id="buttonRect" class="button template" style="background-color: rgb(185, 185, 185); border: none; padding: 5px 10px;">Rect</button>
+                <button onclick="chooseCircle()" id="buttonCircle" class="button template" style="background-color: rgb(185, 185, 185); border: none; padding: 5px 10px;">Circle</button>
+            </div>
+            <div>
+                <br>
+                <button onclick="drawLine()" class="button template" style="background-color: rgb(185, 185, 185); border: none; padding: 5px 10px;">draw line</button>
+            </div>
+            <div>
+                lineStartX: <input onClick="this.select();" id="lineStartX" type="text" class="snumber" value=0 style="width: 30px;">
+                lineStartY: <input onClick="this.select();" id="lineStartY" type="text" class="snumber" value=0 style="width: 30px;">
+                lineEndX: <input onClick="this.select();" id="lineEndX" type="text" class="snumber" value=0 style="width: 30px;">
+                lineEndY: <input onClick="this.select();" id="lineEndY" type="text" class="snumber" value=0 style="width: 30px;">
+            </div>
+            <div>
+                <br>
+                <button onclick="drawRect()" class="button template" style="background-color: rgb(185, 185, 185); border: none; padding: 5px 10px;">draw rect</button>
+            </div>
+            <div>
+                rectStartX: <input onClick="this.select();" id="rectStartX" type="text" class="snumber" value=0 style="width: 30px;">
+                rectStartY: <input onClick="this.select();" id="rectStartY" type="text" class="snumber" value=0 style="width: 30px;">
+                rectWidth: <input onClick="this.select();" id="rectWidth" type="text" class="snumber" value=0 style="width: 30px;">
+                rectHeight: <input onClick="this.select();" id="rectHeight" type="text" class="snumber" value=0 style="width: 30px;">
+            </div>
+            <div>
+                <br>
+                <button onclick="drawCircle()" class="button template" style="background-color: rgb(185, 185, 185); border: none; padding: 5px 10px;">draw circle</button>
+            </div>
+            <div>
+                circleCenterX: <input onClick="this.select();" id="circleCenterX" type="text" class="snumber" value=0 style="width: 30px;">
+                circleCenterY: <input onClick="this.select();" id="circleCenterY" type="text" class="snumber" value=0 style="width: 30px;">
+                circleRadius: <input onClick="this.select();" id="circleRadius" type="text" class="snumber" value=0 style="width: 30px;">
+            </div>
+            <div>
+                <br>
+                <button onclick="editLine()" class="button template" style="background-color: rgb(185, 185, 185); border: none; padding: 5px 10px;">edit line</button>
+            </div>
+            <div>
+                lineStartX: <input onClick="this.select();" id="lineStartXEdit" type="text" class="snumber" value=0 style="width: 30px;">
+                lineStartY: <input onClick="this.select();" id="lineStartYEdit" type="text" class="snumber" value=0 style="width: 30px;">
+                lineEndX: <input onClick="this.select();" id="lineEndXEdit" type="text" class="snumber" value=0 style="width: 30px;">
+                lineEndY: <input onClick="this.select();" id="lineEndYEdit" type="text" class="snumber" value=0 style="width: 30px;">
+            </div>
+            <div>
+                <br>
+                <button onclick="editRect()" class="button template" style="background-color: rgb(185, 185, 185); border: none; padding: 5px 10px;">edit rect</button>
+            </div>
+            <div>
+                rectStartX: <input onClick="this.select();" id="rectStartXEdit" type="text" class="snumber" value=0 style="width: 30px;">
+                rectStartY: <input onClick="this.select();" id="rectStartYEdit" type="text" class="snumber" value=0 style="width: 30px;">
+                rectWidth: <input onClick="this.select();" id="rectWidthEdit" type="text" class="snumber" value=0 style="width: 30px;">
+                rectHeight: <input onClick="this.select();" id="rectHeightEdit" type="text" class="snumber" value=0 style="width: 30px;">
+            </div>
+            <div>
+                <br>
+                <button onclick="editCircle()" class="button template" style="background-color: rgb(185, 185, 185); border: none; padding: 5px 10px;">edit circle</button>
+            </div>
+            <div>
+                circleCenterX: <input onClick="this.select();" id="circleCenterXEdit" type="text" class="snumber" value=0 style="width: 30px;">
+                circleCenterY: <input onClick="this.select();" id="circleCenterYEdit" type="text" class="snumber" value=0 style="width: 30px;">
+                circleRadius: <input onClick="this.select();" id="circleRadiusEdit" type="text" class="snumber" value=0 style="width: 30px;">
+            </div>
+        </div>
+    </body>
+
+</html>
